@@ -1,0 +1,4 @@
+sudo python generateToken.py --key=4f7b5a34db3a4fa28769fcc8faea7646 --appID=29ebdc.vidyo.io --userName=user1 --expiresInSecs=100000
+
+
+cHJvdmlzaW9uAGFiaGlzaGVrYmhhcmR3YWoxMzUwNkBnbWFpbC5jb21AMjllYmRjLnZpZHlvLmlvADYzNjczNDMzNjg4AAA0MTgzN2RiMWU3YTk2MDYyZmE4YmM5MmY2MjQyOGQyOWJjOGYxOTQwMDQ0OWU4ZWY4MmRmNmVkNmI1ZmUwMmM1OThiYWVkYzM0ODE3MDAzY2ZiYTExOTQ5Zjc2NDEwMWE

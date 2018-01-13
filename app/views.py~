@@ -1,0 +1,511 @@
+from app import app, lm
+from flask import request, redirect, render_template, url_for, flash,session
+from flask.ext.login import login_user, logout_user, login_required
+from .forms import LoginForm
+from .user import User
+from datetime import datetime
+import pandas as pd
+import numpy as np
+import json,time
+from collections import defaultdict
+import os, sys,csv
+from pymongo import MongoClient
+from bson import json_util
+from statsmodels.tsa.seasonal import seasonal_decompose
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.stattools import acf, pacf
+from statsmodels.tsa.arima_model import ARIMA
+from scipy import stats
+import numpy as np
+from sklearn.metrics import mean_absolute_error
+def ttest(y_true, y_pred): 
+    return stats.ttest_ind((y_true),(y_pred))
+# from bson.json_util import dumps, loads
+ip='52.23.231.5'
+dbname="foreseeing"
+collectionname="temp"
+# result=[]
+
+@app.route('/data',methods=["POST"])
+def data():	
+	client = MongoClient(ip, 27017)
+	db = client[dbname]
+	collection=db[collectionname]
+	filter=request.get_json(force=True)
+	tags = collection.find({'Brand':filter['brand']})
+	client.close()
+	data=[]	
+	for x in tags:	
+		try:
+			x['Quantity Shipped']=int(x['Quantity Shipped'])
+		except Exception, e:
+			x['Quantity Shipped']=0
+			pass
+		data.append({"Date":x[ u'Year_Mo'],"Brand":x[u'Brand'],"Quanitiy":x['Quantity Shipped']})
+	client.close()
+	return json.dumps(data)
+
+@app.route('/brands',methods=["POST"])
+def brands():
+	client = MongoClient(ip, 27017)
+	db = client[dbname]
+	collection=db[collectionname]
+	tags = collection.distinct("Brand")	
+	# print tags
+	tags = tags[:55]
+	return json.dumps(tags)
+
+@app.route('/singlelinechart',methods=["POST"])
+def  singlelinechart():
+	client = MongoClient(ip, 27017)
+	db = client[dbname]
+	collection=db[collectionname]
+	filter=request.get_json(force=True)
+	tags = collection.find({'Brand':filter['brand']})
+	client.close()
+	data=[]	
+	for x in tags:	
+		try:
+			x['Quantity Shipped']=float(x['Quantity Shipped'])
+		except Exception, e:
+			x['Quantity Shipped']=0
+			pass	
+		year=x[ u'Year_Mo'].split("_")[0]
+		month=str(int(x[ u'Year_Mo'].split("_")[1]))		
+		data.append([int(datetime.strptime('01/'+month+'/'+year, '%d/%m/%Y').strftime("%s"))*1000,x['Quantity Shipped']])
+	tags1=  [{ "key": "Quantity","mean": 1.5,"values":data}]
+
+	return json.dumps(tags1)
+
+@app.route('/meanandstd',methods=["POST"])
+def  meanandstd():
+	client = MongoClient(ip, 27017)
+	db = client[dbname]
+	collection=db[collectionname]
+	filter=request.get_json(force=True)
+	tags = collection.find({'Brand':filter['brand']})
+	client.close()
+	data=[]
+	dataorg=[]
+	for x in tags:
+		try:
+			x['Quantity Shipped']=int(x['Quantity Shipped'])
+		except Exception, e:
+			x['Quantity Shipped']=0
+			pass	
+		data.append({'date':pd.datetime.strptime(x['Year_Mo'], '%Y_%m'),'Quantity':x[u'Quantity Shipped']})
+		year=x[ u'Year_Mo'].split("_")[0]
+		month=str(int(x[ u'Year_Mo'].split("_")[1]))		
+		dataorg.append([int(datetime.strptime('01/'+month+'/'+year, '%d/%m/%Y').strftime("%s"))*1000,x['Quantity Shipped']])
+	data=pd.DataFrame.from_dict(data, orient='columns', dtype=None)
+	data.index=data['date']
+	df=data['Quantity']
+	rolmean = pd.rolling_mean(df, window=6)
+	rolstd = pd.rolling_std(df, window=6)
+	datamean=[]
+	rolmean=rolmean.dropna()
+	for x in rolmean.index:
+		try:	
+			datamean.append([int(x.strftime("%s"))*1000,round(float(rolmean[x]),2)])
+		except Exception, e:
+			pass
+	datastd=[]
+	rolstd=rolstd.dropna()
+	for x in rolstd.index:
+		try:
+			datastd.append([int(x.strftime("%s"))*1000,round(float(rolstd[x]),2)])
+		except Exception, e:
+			pass
+	tags1=  [{ "key": "Quantity","mean": 1.5,"values":dataorg},{ "key": "Rolling Mean","mean": 1.5,"values":datamean},{ "key": "Rolloing Standard Deviation","mean": 1.5,"values":datastd}]
+	return json.dumps(tags1)
+
+@app.route('/decomposition',methods=["POST"])
+def  decomposition():
+	client = MongoClient(ip, 27017)
+	db = client[dbname]
+	collection=db[collectionname]
+	filter=request.get_json(force=True)
+	tags = collection.find({'Brand':filter['brand']})
+	client.close()
+	data=[]
+	
+	for x in tags:
+		try:
+			x['Quantity Shipped']=int(x['Quantity Shipped'])
+		except Exception, e:
+			x['Quantity Shipped']=0
+			pass	
+		data.append({'date':pd.datetime.strptime(x['Year_Mo'], '%Y_%m'),'Quantity':x[u'Quantity Shipped']})
+		
+	data=pd.DataFrame.from_dict(data, orient='columns', dtype=None)
+	data.index=data['date']
+	df=data['Quantity']
+	try:
+		decomposition = seasonal_decompose(df)
+	except Exception, e:
+		decomposition = seasonal_decompose(df,freq=2)
+		pass
+	
+	
+	trend = decomposition.trend
+	seasonal = decomposition.seasonal
+	residual = decomposition.resid
+	trending=[]
+	seasonality=[]
+	residuals=[]
+	trend=trend.dropna()
+	seasonal=seasonal.dropna()
+	residual=residual.dropna()
+	for x in trend.index:
+		try:	
+			trending.append([int(x.strftime("%s"))*1000,round(float(trend[x]),2)])
+		except Exception, e:
+			pass
+	for x in seasonal.index:
+		try:	
+			seasonality.append([int(x.strftime("%s"))*1000,round(float(seasonal[x]),2)])
+		except Exception, e:
+			pass
+	for x in residual.index:
+		try:	
+			residuals.append([int(x.strftime("%s"))*1000,round(float(residual[x]),2)])
+		except Exception, e:
+			pass
+	tags1=  [{ "key": "Trend","mean": 1.5,"values":trending},{ "key": "Seasonality","mean": 1.5,"values":seasonality},{ "key": "Residuals","mean": 1.5,"values":residuals}]
+	return json.dumps(tags1)
+
+
+@app.route('/acf',methods=["POST"])
+def  acf12():
+	client = MongoClient(ip, 27017)
+	db = client[dbname]
+	collection=db[collectionname]
+	filter=request.get_json(force=True)
+	tags = collection.find({'Brand':filter['brand']})
+	client.close()
+	data=[]
+	
+	for x in tags:
+		try:
+			x['Quantity Shipped']=int(x['Quantity Shipped'])
+		except Exception, e:
+			x['Quantity Shipped']=0
+			pass	
+		data.append({'date':pd.datetime.strptime(x['Year_Mo'], '%Y_%m'),'Quantity':x[u'Quantity Shipped']})
+		
+	data=pd.DataFrame.from_dict(data, orient='columns', dtype=None)
+	data.index=data['date']
+	df=data['Quantity']
+	lag_acf = acf(df, nlags=20)
+	acf1=list(lag_acf)
+	acfun=[]
+	belowline=[]
+	aboveline=[]
+	count=0
+	for x in acf1:
+		acfun.append([count,x])
+		belowline.append([count,-0.02])
+		aboveline.append([count,0.02])
+		count +=1	
+	tags1=  [{ "key": "ACF","mean": 1.5,"values":acfun},{ "key": "BelowLine","mean": 1.5,"values":belowline},{ "key": "AboveLine","mean": 1.5,"values":aboveline}]
+	return json.dumps(tags1)
+
+@app.route('/pacf',methods=["POST"])
+def  pacf12():
+	client = MongoClient(ip, 27017)
+	db = client[dbname]
+	collection=db[collectionname]
+	filter=request.get_json(force=True)
+	tags = collection.find({'Brand':filter['brand']})
+	client.close()
+	data=[]
+	
+	
+	for x in tags:
+		try:
+			x['Quantity Shipped']=float(x['Quantity Shipped'])
+		except Exception, e:
+			x['Quantity Shipped']=0
+			pass	
+		data.append({'date':pd.datetime.strptime(x['Year_Mo'], '%Y_%m'),'Quantity':x[u'Quantity Shipped']})
+		
+	data=pd.DataFrame.from_dict(data, orient='columns', dtype=None)
+	data.index=data['date']
+	df=data['Quantity']
+	lag_acf = pacf(df, nlags=20)
+	acf1=list(lag_acf)
+	acfun=[]
+	belowline=[]
+	aboveline=[]
+	count=0
+	for x in acf1:
+		acfun.append([count,x])
+		belowline.append([count,-0.02])
+		aboveline.append([count,0.02])
+		count +=1		
+	tags1=  [{ "key": "PACF","mean": 1.5,"values":acfun},{ "key": "BelowLine","mean": 1.5,"values":belowline},{ "key": "AboveLine","mean": 1.5,"values":aboveline}]
+	return json.dumps(tags1)
+
+
+@app.route('/ma',methods=["POST"])
+def  ma():
+	client = MongoClient(ip, 27017)
+	db = client[dbname]
+	collection=db[collectionname]
+	filter=request.get_json(force=True)
+	tags = collection.find({'Brand':filter['brand']})
+	client.close()
+	data=[]
+	dataorg=[]
+	for x in tags:
+		try:
+			x['Quantity Shipped']=float(x['Quantity Shipped'])
+		except Exception, e:
+			x['Quantity Shipped']=0
+			pass	
+		data.append({'date':pd.datetime.strptime(x['Year_Mo'], '%Y_%m'),'Quantity':x[u'Quantity Shipped']})
+		year=x[ u'Year_Mo'].split("_")[0]
+		month=str(int(x[ u'Year_Mo'].split("_")[1]))		
+		dataorg.append([int(datetime.strptime('01/'+month+'/'+year, '%d/%m/%Y').strftime("%s"))*1000,x['Quantity Shipped']])
+	data=pd.DataFrame.from_dict(data, orient='columns', dtype=None)
+	data.index=data['date']
+	df=data['Quantity']
+	try:
+		model = ARIMA(df, order=(0, filter['dlag'], filter['qlag']))
+		results_ARIMA = model.fit(disp=-1)  
+		rolmean = results_ARIMA.fittedvalues  
+	except Exception, e:		
+		tags1=  [{ "key": "Quantity  ERROR Due to Pramters","mean": 1.5,"values":dataorg}]				
+		return json.dumps(tags1)	
+		pass
+
+	datamean=[]
+	for x in rolmean.index:
+		try:	
+			datamean.append([int(x.strftime("%s"))*1000,round(float(rolmean[x]),2)])
+		except Exception, e:
+			pass
+	
+	tags1=  [{ "key": "Quantity","mean": 1.5,"values":dataorg},{ "key": "MovingAverage ","mean": 1.5,"values":datamean}]
+	return json.dumps(tags1)
+
+
+
+
+@app.route('/ar',methods=["POST"])
+def  ar():
+	client = MongoClient(ip, 27017)
+	db = client[dbname]
+	collection=db[collectionname]
+	filter=request.get_json(force=True)
+	tags = collection.find({'Brand':filter['brand']})
+	client.close()
+	data=[]
+	dataorg=[]
+	for x in tags:
+		try:
+			x['Quantity Shipped']=float(x['Quantity Shipped'])
+		except Exception, e:
+			x['Quantity Shipped']=0
+			pass	
+		data.append({'date':pd.datetime.strptime(x['Year_Mo'], '%Y_%m'),'Quantity':x[u'Quantity Shipped']})
+		year=x[ u'Year_Mo'].split("_")[0]
+		month=str(int(x[ u'Year_Mo'].split("_")[1]))		
+		dataorg.append([int(datetime.strptime('01/'+month+'/'+year, '%d/%m/%Y').strftime("%s"))*1000,x['Quantity Shipped']])
+	data=pd.DataFrame.from_dict(data, orient='columns', dtype=None)
+	data.index=data['date']
+	df=data['Quantity']
+	try:
+		model = ARIMA(df, order=(filter['plag'], filter['dlag'], 0))
+		results_ARIMA = model.fit(disp=-1)  
+		rolmean = results_ARIMA.fittedvalues  
+	except Exception, e:		
+		tags1=  [{ "key": "Quantity  ERROR Due to Pramters","mean": 1.5,"values":dataorg}]				
+		return json.dumps(tags1)	
+		pass
+
+
+	datamean=[]
+	for x in rolmean.index:
+		try:	
+			datamean.append([int(x.strftime("%s"))*1000,round(float(rolmean[x]),2)])
+		except Exception, e:
+			pass
+
+	tags1=  [{ "key": "Quantity","mean": 1.5,"values":dataorg},{ "key": "Autoregressive ","mean": 1.5,"values":datamean}]
+	return json.dumps(tags1)
+
+@app.route('/arima',methods=["POST"])
+def  arimaa():
+	client = MongoClient(ip, 27017)
+	db = client[dbname]
+	collection=db[collectionname]
+	filter=request.get_json(force=True)
+	tags = collection.find({'Brand':filter['brand']})
+	client.close()
+	data=[]
+	dataorg=[]
+	for x in tags:
+		try:
+			x['Quantity Shipped']=float(x['Quantity Shipped'])
+		except Exception, e:
+			x['Quantity Shipped']=0
+			pass	
+		data.append({'date':pd.datetime.strptime(x['Year_Mo'], '%Y_%m'),'Quantity':x[u'Quantity Shipped']})
+		year=x[ u'Year_Mo'].split("_")[0]
+		month=str(int(x[ u'Year_Mo'].split("_")[1]))		
+		dataorg.append([int(datetime.strptime('01/'+month+'/'+year, '%d/%m/%Y').strftime("%s"))*1000,x['Quantity Shipped']])
+	data=pd.DataFrame.from_dict(data, orient='columns', dtype=None)
+	data.index=data['date']
+	df=data['Quantity']
+	try:
+		model = ARIMA(df, order=(filter['plag'], filter['dlag'], filter['qlag']))
+		results_ARIMA = model.fit(disp=-1)  
+		rolmean = results_ARIMA.fittedvalues  
+	except Exception, e:		
+		tags1=  [{ "key": "Quantity  ERROR Due to Pramters","mean": 1.5,"values":dataorg}]				
+		return json.dumps(tags1)	
+		pass
+	
+	datamean=[]
+	for x in rolmean.index:
+		try:	
+			datamean.append([int(x.strftime("%s"))*1000,round(float(rolmean[x]),2)])
+		except Exception, e:
+			pass
+
+	tags1=  [{ "key": "Quantity","mean": 1.5,"values":dataorg},{ "key": "ARIMA ","mean": 1.5,"values":datamean}]
+	return json.dumps(tags1)
+
+@app.route('/compare',methods=["POST"])
+def compare():
+	result=[]
+	client = MongoClient(ip, 27017)
+	db = client[dbname]
+	collection=db[collectionname]
+	filter=request.get_json(force=True)
+	print filter
+	tags = collection.find({'Brand':filter['brand']})
+	client.close()
+	data=[]
+	dataorg=[]
+	for x in tags:
+		try:
+			x['Quantity Shipped']=float(x['Quantity Shipped'])
+			data.append({'date':pd.datetime.strptime(x['Year_Mo'], '%Y_%m'),'Quantity':x[u'Quantity Shipped']})
+		except Exception, e:
+			# x['Quantity Shipped']=0
+			pass	
+		
+		year=x[ u'Year_Mo'].split("_")[0]
+		month=str(int(x[ u'Year_Mo'].split("_")[1]))		
+		dataorg.append([int(datetime.strptime('01/'+month+'/'+year, '%d/%m/%Y').strftime("%s"))*1000,x['Quantity Shipped']])
+	data=pd.DataFrame.from_dict(data, orient='columns', dtype=None)
+	data.index=data['date']
+	df=data['Quantity']
+	# print df
+	try:
+		model = ARIMA(df, order=(filter['plag'], filter['dlag'], filter['qlag']))
+		results_ARIMA = model.fit(disp=-1)  
+		rolmean = results_ARIMA.fittedvalues  
+		print rolmean
+		test=pd.merge(pd.DataFrame(rolmean,index=rolmean.index,columns=['predicted']), pd.DataFrame(df,index=df.index), how='inner', on=None, left_index=True, right_index=True)
+		mape=np.mean(np.abs((test['Quantity']-test['predicted'])/test['Quantity'])*100)
+		pv=stats.ttest_ind(test['Quantity'], test['predicted'])
+		result.append({"Algorithm":"ARIMA","Pvalue":round(pv[1],4),"Tstatic":round(pv[0],4),"MAPE":round(mape,2)})
+	except Exception, e:
+		result.append({"Algorithm":"ARIMA","Pvalue":'NA',"Tstatic":'NA',"MAPE":'NA'})			
+		pass
+
+
+	try:
+		model = ARIMA(df, order=(filter['plag'], filter['dlag'], 0))
+		results_ARIMA = model.fit(disp=-1)  
+		rolmean = results_ARIMA.fittedvalues  
+		print rolmean
+		test=pd.merge(pd.DataFrame(rolmean,index=rolmean.index,columns=['predicted']), pd.DataFrame(df,index=df.index), how='inner', on=None, left_index=True, right_index=True)
+		mape=np.mean(np.abs((test['Quantity']-test['predicted'])/test['Quantity'])*100)
+		pv=stats.ttest_ind(test['Quantity'], test['predicted'])
+		result.append({"Algorithm":"AR","Pvalue":round(pv[1],4),"Tstatic":round(pv[0],4),"MAPE":round(mape,2)})
+	except Exception, e:
+		result.append({"Algorithm":"AR","Pvalue":'NA',"Tstatic":'NA',"MAPE":'NA'})			
+		pass	
+
+
+	try:
+		model = ARIMA(df, order=(0, filter['dlag'], filter['qlag']))
+		results_ARIMA = model.fit(disp=-1)  
+		rolmean = results_ARIMA.fittedvalues  
+		test=pd.merge(pd.DataFrame(rolmean,index=rolmean.index,columns=['predicted']), pd.DataFrame(df,index=df.index), how='inner', on=None, left_index=True, right_index=True)
+		mape=np.mean(np.abs((test['Quantity']-test['predicted'])/test['Quantity'])*100)
+		pv=stats.ttest_ind(test['Quantity'], test['predicted'])
+		result.append({"Algorithm":"MA","Pvalue":round(pv[1],4),"Tstatic":round(pv[0],4),"MAPE":round(mape,2)})
+	except Exception, e:
+		result.append({"Algorithm":"MA","Pvalue":'NA',"Tstatic":'NA',"MAPE":'NA'})			
+		pass			
+
+	
+	for x in result:
+		for y in x:
+			# print str(x[y])
+			if x[y]==np.inf or x[y] != x[y]:
+				x[y]="NA"
+	text=str(filter['brand'])+" , p= "+str(filter['plag'])+" , d= "+str(filter['dlag'])+", q= "+str(filter['qlag'])
+	print result
+	return json.dumps({"name":text,"result":result})
+@app.route('/')
+def home():
+    return redirect(url_for("login"))
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if request.method == 'POST' and form.validate_on_submit():
+        user = app.config['USERS_COLLECTION'].find_one({"_id": form.username.data})
+        if user and User.validate_login(user['password'], form.password.data) and user[u'status']==u'true':
+            user_obj = User(user['_id'])
+            login_user(user_obj)
+	    session['logged_in'] = True
+	    session['user'] = user            
+	    flash("Logged in successfully!", category='success')
+	    if user['role']=='admin':
+	    	return render_template('admin.html', title='login', form=form)
+            else:
+            	return redirect(request.args.get("next") or url_for("index"))
+        flash("Wrong username or password!", category='error')
+    return render_template('login.html', title='login', form=form)
+
+@app.route('/user',methods=["POST"])
+def user():
+	user_obj=session.get('user',None)
+	user_obj['group']=list(set(user_obj['group']))
+	return json.dumps(user_obj)
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    logout_user()
+    return redirect(url_for('login'))
+
+
+@app.route('/index', methods=['GET', 'POST'])
+@login_required
+def index():
+    # user_obj=session.get('user', None)
+    # print user_obj
+    return render_template('index.html')
+
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    return render_template('profile.html')
+
+
+@lm.user_loader
+def load_user(username):
+    u = app.config['USERS_COLLECTION'].find_one({"_id": username})
+    if not u:
+        return None
+    return User(u['_id'])

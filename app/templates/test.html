@@ -1,0 +1,74 @@
+	
+I would like to start with advising you to follow this official tutorial: it shows you the beginnings of how to build an app with AngularJS and views. The reason I would advise this is because there are quite a few basic elements that are missing from the script, mostly the <a> tags. Maybe you can start from the tutorial and build your own code based on that.
+
+Remarks about your code:
+
+Add all your script tags with javascript in your <head>. These will then in turn be run by a browser, making sure that all dependencies are met
+You forgot a comma after "app" in your module initialization
+Most important, you should change your <p> tags to <a> tags if you want views to work. Angular uses the <a>-tags to make navigation to different views possible. The href attribute of an <a> tag is used for this. Check my code below and you can see that my href attributes are linked to the routeprovider in the when clause.
+Below you will find your adjusted code. Hope it helps!
+
+<!doctype html>
+<html data-ng-app="app">
+    <head>
+        <meta charset="utf-8"/>
+        <title></title>
+
+        <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="css/bootstrap-responsive.css">
+        <link rel="stylesheet" type="text/css" href="css/bootstrap-extended.css">
+        <link rel="stylesheet" type="text/css" href="css/custom.css">
+        <!-- Java Script -->
+        <script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js">    </script>
+        <script type="text/javascript" src="js/bootstrap.min.js"></script>
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.10/angular.min.js"></script>
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.10/angular-route.js"></script>
+        <script>
+            var app = angular.module('app', ['ngRoute']);
+
+            app.config(function($routeProvider){
+
+                $routeProvider
+                    .when('/', 
+                    {
+                        controller: 'basicController',
+                        templateUrl: 'partials/viewOne.html'
+                    })
+                    .when('/menu', {
+                        controller: 'basicController',
+                        templateUrl: 'partials/viewTwo.html'
+                    })
+                    .when('/map', 
+                    {
+                        controller: 'basicController',
+                        templateUrl: 'partials/viewThree.html'
+                    })
+                    .otherwise({ redirectTo: '/' });
+            });
+
+            app.controller('basicController', ['$scope', function ($scope) {
+                $scope.message = "Hello!";
+            }]);
+        </script>
+    </head>
+    <body>
+        <div id="container">
+            <nav class="col-xs-12">
+                <table id="navTable">
+                    <tr>
+                        <td><a href="#">view 1</a></td>
+                        <td><a href="#/menu">view 2</a></td>
+                        <td><a href="#/map">view 3</a></td>
+                    </tr>
+                </table>
+            </nav>
+
+            <!-- View Placeholder -->
+            <article data-ng-view="" class="col-xs-6 col-xs-offset-3">
+                Views goes here...
+            </article>
+
+            <footer class="col-xs-12 navbar-fixed-bottom"></footer>
+        </div>
+    </body>
+</html>

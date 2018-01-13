@@ -1,0 +1,809 @@
+<!doctype>
+<html  lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+   <title>AICollab</title>
+    <link rel="shortcut icon" href="http://kids.nationalgeographic.com/content/dam/kids/photos/articles/Science/A-G/brain.ngsversion.1398176967716.jpg" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://dhbhdrzi4tiry.cloudfront.net/cdn/sites/foundation.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.1/css/font-awesome.min.css">
+    <link rel="stylesheet" href="../static/css/app.css">
+    <link href="../static/build/nv.d3.css" rel="stylesheet" type="text/css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.2/d3.min.js" charset="utf-8"></script>
+    <script src="../static/build/nv.d3.js"></script>
+    <link rel="stylesheet" href="../static/css/reveal.css">
+    <script src="../static/js/jquery.min.js" type="text/javascript"></script>
+    <script src="../static/js/jquery.reveal.js" type="text/javascript"></script>
+    <style>
+    @import url("//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css");
+$mobile: 680px;
+@mixin respond-to($breakpoint){
+    @media only screen and (max-width: $breakpoint) { @content; }
+}
+@mixin respond-to-above($breakpoint){
+    @media only screen and (min-width: $breakpoint) { @content; }
+}
+
+.data-table{
+        width: 100%;
+        background-color: #FDFDFD;
+        font-size: .8rem;
+        color: #333;
+        
+        thead{
+            background-color: #cccfd1;
+            
+            th{
+                text-align: left;
+                text-transform: uppercase;
+                padding: .5rem;
+                font-weight: bold;
+                color: #000;
+                font-size: .9rem;
+            }
+        }
+        
+        tbody{
+            tr:nth-child(even){
+                background-color:#e7e9ea;
+            }
+        
+            td{
+                padding: .5rem;
+                border-bottom: 1px solid #DDD;
+            }
+        }
+}
+
+@include respond-to($mobile){
+    
+/* Force tables to not be like tables anymore */
+.responsive-table, .responsive-table thead, .responsive-table tbody, .responsive-table th, .responsive-table td, .responsive-table tr{
+    display: block;
+}
+
+/* Hide table headers (but not display: none;, for accessibility) */
+.responsive-table thead tr{
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+}
+
+.responsive-table td {
+    /* Behave  like a "row" */
+    border: none;
+    position: relative;
+    padding-left: 33% !important;
+}
+
+.responsive-table td:before {
+    /* Now like a table header */
+    position: absolute;
+    /* Top/left values mimic padding */
+    top: 6px;
+    left: 6px;
+    width: 45%;
+    padding-right: 10px;
+    white-space: nowrap;
+    content: attr(data-label);
+}
+
+
+//table row seperation line
+.table-hr td:last-of-type:after{
+    content: " "; 
+    height: 2px; 
+    background:#cbc7c7;
+    width: 100%;
+    position: absolute;
+    top:98%;
+    left: 0;
+}
+
+}//eof include
+
+.zoom { 
+width: 250px; 
+float:left;
+z-index: 100;
+    -webkit-transition: all .3s ease-out; 
+    -moz-transition: all .3s ease-out; 
+    -o-transition: all .3s ease-out; 
+    transition: all .3s ease-out; 
+-webkit-backface-visibility: hidden;
+-webkit-perspective: 1000;
+}
+
+.zoom:hover { 
+    -moz-transform: scale(32);
+    -webkit-transform: scale(2);
+    -o-transform: scale(2);
+    transform: scale(2);
+    -ms-transform: scale(2);
+filter: progid:DXImageTransform.Microsoft.Matrix(sizingMethod='auto expand',
+    M11=2, M12=-0, M21=0, M22=2);
+  
+}
+
+.image { 
+margin: 0; 
+border: 0 }
+
+.left {
+width: 250px; 
+float:left;
+z-index: 10; 
+overflow: hidden;
+  
+}
+
+.collapse-table{
+    tr.collapse{
+        @include respond-to($mobile){ 
+      td{ display: none; 
+        &:first-of-type{display: block !important;} 
+      } 
+    }
+    }
+            
+    td{
+        vertical-align: top;
+        i{
+            cursor: pointer;
+        }
+        
+        &.collapse{
+            @include respond-to-above($mobile){img{display: none;}}
+        }
+    }
+    
+    
+}
+        * Profile container */
+.profile {
+  margin: 20px 0;
+}
+
+/* Profile sidebar */
+.profile-sidebar {
+  padding: 20px 0 10px 0;
+  background: #fff;
+}
+
+.profile-userpic img {
+  float: none;
+  margin-left:90px;
+  width: 45%;
+  height: 100px;
+
+  -webkit-border-radius: 50% !important;
+  -moz-border-radius: 50% !important;
+  border-radius: 50% !important;
+}
+
+.profile-usertitle {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.profile-usertitle-name {
+  color: #5a7391;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+
+.profile-usertitle-job {
+  text-transform: uppercase;
+  color: #5b9bd1;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.profile-userbuttons {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.profile-userbuttons .btn {
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 15px;
+  margin-right: 5px;
+}
+
+.profile-userbuttons .btn:last-child {
+  margin-right: 0px;
+}
+    
+.profile-usermenu {
+  margin-top: 30px;
+}
+
+.profile-usermenu ul li {
+  border-bottom: 1px solid #f0f4f7;
+}
+
+.profile-usermenu ul li:last-child {
+  border-bottom: none;
+}
+
+.profile-usermenu ul li a {
+  color: #93a3b5;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.profile-usermenu ul li a i {
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+.profile-usermenu ul li a:hover {
+  background-color: #fafcfd;
+  color: #5b9bd1;
+}
+
+.profile-usermenu ul li.active {
+  border-bottom: none;
+}
+
+.profile-usermenu ul li.active a {
+  color: #5b9bd1;
+  background-color: #f6f9fb;
+  border-left: 2px solid #5b9bd1;
+  margin-left: -2px;
+}
+
+/* Profile Content */
+.profile-content {
+  padding: 20px;
+  background: #fff;
+  min-height: 460px;
+}
+     
+    </style>
+
+</head>
+<body>
+
+<div class="top-bar">   
+       <div class="top-bar-left">
+        
+            <ul class="dropdown menu" data-dropdown-menu>
+             
+             <li>
+                <a href="/index"><img src="../static/img/lg1.png" height="30" width="130">
+              
+              </li>
+             
+            </ul>
+     </div>
+     
+    <div class="top-bar-right">
+            <ul class="dropdown menu" data-dropdown-menu>
+             
+             <li>
+                <a href="/logout" class="iconlink" data-tooltip aria-haspopup="true" data-disable-hover='false' tabindex=1 title="Logout"><i class="fa fa-power-off"></i></a>
+              
+              </li>
+             
+            </ul>
+    </div>
+</div>
+   
+
+<div class="row">
+    <div class="large-3 columns filter-area" >
+        
+<div class="container">
+    <div class="row profile">
+            <div class="profile-sidebar">
+                <!-- SIDEBAR USERPIC -->
+                <div class="profile-userpic">
+                    <img src="{{user.image_url}}" alt="">
+                </div>
+                <!-- END SIDEBAR USERPIC -->
+                <!-- SIDEBAR USER TITLE -->
+                <div class="profile-usertitle">
+                    <meta id="my-data" data-token="{{user.token}}" data-myname="{{user.name}}">
+
+                    <div class="profile-usertitle-name">
+                       {{user.name}}
+                    </div>
+                    <div class="profile-usertitle-job">
+                        {{user.domain}}<br>
+                          <i class="fa fa-envelope"></i>
+                            {{user.email}} </a><br>
+                              <i class="fa fa-phone"></i>
+                            {{user.phone}} </a>
+                    </div>
+                    
+                </div>
+                <!-- END SIDEBAR USER TITLE -->
+                <!-- SIDEBAR BUTTONS -->
+                <div class="profile-userbuttons">
+                    <button type="button" class="btn btn-success btn-sm">{{user.comapny}}</button>
+                </div>
+               
+            </div>
+        
+    </div>
+</div>
+<br>
+<br>
+
+
+
+    </div> 
+
+    <div class="large-9 columns filter-area">
+        <div>
+        <ul class="tabs" data-tabs id="example-tabs">
+            <li class="tabs-title is-active">
+            <a href="#panel1"  aria-selected="true">Paitents</a>
+            </li>
+            <!-- <li class="tabs-title">
+            <a href="#panel2" >White Board</a>
+            </li> -->
+            <li class="tabs-title">
+            <a href="#panel3" >Connect</a>
+            </li>
+            <li class="tabs-title">
+            <a href="#panel4">Invite People To Meeting</a>
+            </li>
+            
+        </ul>
+
+        <div class="tabs-content" data-tabs-content="example-tabs">
+           
+            <div class="tabs-panel is-active" id="panel1">
+                 
+                <div class="large-12 columns" style="padding-top:10px">              
+                   
+                        <div class="panel comp-panel">
+                     
+                            <table class="table-hr data-table collapse-table responsive-table">
+<thead><tr><th title="Field #1">subject</th>
+
+<th title="Field #5">eq. diam.</th>
+<th title="Field #6">X pos.</th>
+<th title="Field #7">Y pos.</th>
+<th title="Field #8">Slice no.</th>
+<th title="Field #9">nodIDs</th>
+<th title="Field #10">image</th>
+<th title="Field #11">paitent_id</th>
+<th title="Field #12">doctor_id</th>
+<th title="Field #13">similarity</th>
+<th title="Field #14">disscharge</th>
+<th title="Field #15">history</th>
+<td ><a href="/sendfax">Share</a></td>
+
+</tr></thead>
+<tbody><tr>
+
+<td align="right">5.58</td>
+<td align="right">2.2</td>
+<td align="right">152</td>
+<td align="right">164</td>
+<td align="right">40</td>
+<td>4009</td>
+<td><img class="zoom image" src="https://i.pinimg.com/736x/1d/e6/82/1de6823c2bc970a2e41c1d9b8245c125--brain-tumor-cancer-treatment.jpg" width="50" height="50"></td>
+<td align="right">1</td>
+<td>Abhignan</td>
+<td>2,3</td>
+<td>Recurrent s tage lIl e ova r i a n cancer: </td>
+<td>HISTORY AND PHYSICAL EXAMINATION ADMITTING DI AGNOS IS , Urinary retention HISTORY OF PRESENT I LLNESS: . </td>
+<td  ><a href="/sendfax">Send Fax to Doctor of Similar Paitents</a></td>
+
+</tr>
+<tr>
+
+<td align="right">82.84</td>
+<td align="right">5.408</td>
+<td align="right">91</td>
+<td align="right">223</td>
+<td align="right">21</td>
+<td>4026</td>
+<td><img  class="zoom image"  src="https://i.pinimg.com/736x/1d/e6/82/1de6823c2bc970a2e41c1d9b8245c125--brain-tumor-cancer-treatment.jpg" width="50" height="50"></td><td align="right"></td>
+<td>Abhignan</td>
+<td>1,3</td>
+<td>Recurrent s tage lIl e ova r i a n cancer: </td>
+<td>HISTORY AND PHYSICAL EXAMINATION ADMITTING DI AGNOS IS , Urinary retention HISTORY OF PRESENT I LLNESS: . </td>
+<td ><a href="/sendfax">Send Fax to Doctor of Similar Paitents</a></td>
+</tr>
+
+</tbody></table>
+          
+
+
+                        </div>
+                        
+                    </div> 
+                
+        
+            </div>
+            <div class="tabs-panel" id="panel2">
+               <div class="large-12 columns" style="padding-top:10px">            
+                   
+                        <iframe src="https://webwhiteboard.com/board/e2yvw6g4" name="myFrame" style="width:100%;height:600px"></iframe>
+
+                </div>                
+                  
+
+            </div>
+            <div class="tabs-panel" id="panel3">
+                  <div class="large-8 columns" >  
+                    <div class="panel comp-panel">  
+                         <h6 style="color:#666;">White Board</h6> 
+                             <iframe src="https://webwhiteboard.com/board/e2yvw6g4" name="myFrame" style="width:100%;height:500px"></iframe>
+                           
+                        </div>    
+                    </div> 
+
+                    <div class="large-4 columns" >   
+                        <div class="panel comp-panel"> 
+                         
+                        <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+                             <h5 style="color:#666;">Create/Join a Call</h5> 
+                            <div>
+
+                                <script>
+                                  var vidyoConnector;
+                                  function StartWindowShare() {
+        // Register for window share status updates, which operates differently in plugin vs webrtc:
+        //    plugin: onAdded and onRemoved callbacks are received for each available window
+        //    webrtc: a popup is displayed (an extension to Firefox/Chrome) which allows the user to
+        //            select a share; once selected, that share will trigger an onAdded event
+        vidyoConnector.RegisterLocalWindowShareEventListener({
+            onAdded: function(localWindowShare) {
+                // In webrtc mode, select the share which triggered this callback
+                if (webrtcMode) {
+                    vidyoConnector.SelectLocalWindowShare({
+                        localWindowShare: localWindowShare
+                    }).then(function() {
+                        console.log("SelectLocalWindowShare Success");
+                    }).catch(function() {
+                        console.error("SelectLocalWindowShare Failed");
+                    });
+                }
+
+                // New share is available so add it to the windowShares array and the drop-down list
+                if (localWindowShare.name != "") {
+                    var shareVal;
+                    if (webrtcMode) {
+                        shareVal = "Selected Share";
+                    } else {
+                        shareVal = localWindowShare.applicationName + " : " + localWindowShare.name;
+                    }
+                    $("#windowShares").append("<option value='" + window.btoa(localWindowShare.id) + "'>" + shareVal + "</option>");
+                    windowShares[window.btoa(localWindowShare.id)] = localWindowShare;
+                    console.log("Window share added, name : " + localWindowShare.name + " | id : " + window.btoa(localWindowShare.id));
+                }
+            },
+            onRemoved: function(localWindowShare) {
+                // Existing share became unavailable
+                $("#windowShares option[value='" + window.btoa(localWindowShare.id) + "']").remove();
+                delete windowShares[window.btoa(localWindowShare.id)];
+            },
+            onSelected: function(localWindowShare) {
+                // Share was selected/unselected by you or automatically
+                if (localWindowShare) {
+                    $("#windowShares option[value='" + window.btoa(localWindowShare.id) + "']").prop('selected', true);
+                    isSharingWindow = true;
+                    console.log("Window share selected : " + localWindowShare.name);
+                } else {
+                    isSharingWindow = false;
+                }
+            },
+            onStateUpdated: function(localWindowShare, state) {
+                // localWindowShare state was updated
+            }
+        }).then(function() {
+            console.log("RegisterLocalWindowShareEventListener Success");
+        }).catch(function() {
+            console.error("RegisterLocalWindowShareEventListener Failed");
+        });
+    }
+                                  function handleSharing(vidyoConnector, webrtc) {
+    var monitorShares = {};
+    var windowShares  = {};
+    var isSharingWindow = false;          // Flag indicating whether a window is currently being shared
+    var webrtcMode = (webrtc === "true"); // Whether the app is running in plugin or webrtc mode
+
+    // The monitorShares & windowShares associative arrays hold a handle to each window/monitor that are available for sharing.
+    // The element with key "0" contains a value of null, which is used to stop sharing.
+    monitorShares[0] = null;
+    windowShares[0]  = null;
+
+    // Check if app is running in plugin or webrtc mode
+    if (webrtcMode === false) {
+        // In plugin mode, start window and monitor sharing
+        StartWindowShare();
+        StartMonitorShare();
+    } else {
+        // In webrtc mode, start window sharing only.
+        // StartWindowShare needs to be called each time a new share is initiated
+        // so perform this action when the "Window Share" drop-down list is clicked.
+        $("#windowShares").click(function() {
+            console.log("*** Window Share drop-down clicked. isSharingWindow = " + isSharingWindow);
+
+            // Initiate the share selection process only if not already sharing
+            if (isSharingWindow === false) {
+                // Re-initialize the windowShares array
+                windowShares = {};
+                windowShares[0] = null;
+
+                // Clear all of the drop-down items other than the first ("None"), which is used to stop sharing
+                $("#windowShares").find('option').not(':first').remove();
+
+                // Start window sharing (in WebRTC mode, this includes monitors)
+                StartWindowShare();
+            }
+        });
+    }
+
+    function StartWindowShare() {
+        // Register for window share status updates, which operates differently in plugin vs webrtc:
+        //    plugin: onAdded and onRemoved callbacks are received for each available window
+        //    webrtc: a popup is displayed (an extension to Firefox/Chrome) which allows the user to
+        //            select a share; once selected, that share will trigger an onAdded event
+        vidyoConnector.RegisterLocalWindowShareEventListener({
+            onAdded: function(localWindowShare) {
+                // In webrtc mode, select the share which triggered this callback
+                if (webrtcMode) {
+                    vidyoConnector.SelectLocalWindowShare({
+                        localWindowShare: localWindowShare
+                    }).then(function() {
+                        console.log("SelectLocalWindowShare Success");
+                    }).catch(function() {
+                        console.error("SelectLocalWindowShare Failed");
+                    });
+                }
+
+                // New share is available so add it to the windowShares array and the drop-down list
+                if (localWindowShare.name != "") {
+                    var shareVal;
+                    if (webrtcMode) {
+                        shareVal = "Selected Share";
+                    } else {
+                        shareVal = localWindowShare.applicationName + " : " + localWindowShare.name;
+                    }
+                    $("#windowShares").append("<option value='" + window.btoa(localWindowShare.id) + "'>" + shareVal + "</option>");
+                    windowShares[window.btoa(localWindowShare.id)] = localWindowShare;
+                    console.log("Window share added, name : " + localWindowShare.name + " | id : " + window.btoa(localWindowShare.id));
+                }
+            },
+            onRemoved: function(localWindowShare) {
+                // Existing share became unavailable
+                $("#windowShares option[value='" + window.btoa(localWindowShare.id) + "']").remove();
+                delete windowShares[window.btoa(localWindowShare.id)];
+            },
+            onSelected: function(localWindowShare) {
+                // Share was selected/unselected by you or automatically
+                if (localWindowShare) {
+                    $("#windowShares option[value='" + window.btoa(localWindowShare.id) + "']").prop('selected', true);
+                    isSharingWindow = true;
+                    console.log("Window share selected : " + localWindowShare.name);
+                } else {
+                    isSharingWindow = false;
+                }
+            },
+            onStateUpdated: function(localWindowShare, state) {
+                // localWindowShare state was updated
+            }
+        }).then(function() {
+            console.log("RegisterLocalWindowShareEventListener Success");
+        }).catch(function() {
+            console.error("RegisterLocalWindowShareEventListener Failed");
+        });
+    }
+
+    function StartMonitorShare() {
+        // Register for monitor share status updates
+        vidyoConnector.RegisterLocalMonitorEventListener({
+            onAdded: function(localMonitorShare) {
+                // New share is available so add it to the monitorShares array and the drop-down list
+                if (localMonitorShare.name != "") {
+                    $("#monitorShares").append("<option value='" + window.btoa(localMonitorShare.id) + "'>" + localMonitorShare.name + "</option>");
+                    monitorShares[window.btoa(localMonitorShare.id)] = localMonitorShare;
+                    console.log("Monitor share added, name : " + localMonitorShare.name + " | id : " + window.btoa(localMonitorShare.id));
+                }
+            },
+            onRemoved: function(localMonitorShare) {
+                // Existing share became unavailable
+                $("#monitorShares option[value='" + window.btoa(localMonitorShare.id) + "']").remove();
+                delete monitorShares[window.btoa(localMonitorShare.id)];
+            },
+            onSelected: function(localMonitorShare) {
+                // Share was selected/unselected by you or automatically
+                if (localMonitorShare) {
+                    $("#monitorShares option[value='" + window.btoa(localMonitorShare.id) + "']").prop('selected', true);
+                    console.log("Monitor share selected : " + localMonitorShare.name);
+                }
+            },
+            onStateUpdated: function(localMonitorShare, state) {
+                // localMonitorShare state was updated
+            }
+        }).then(function() {
+            console.log("RegisterLocalMonitorShareEventListener Success");
+        }).catch(function() {
+            console.error("RegisterLocalMonitorShareEventListener Failed");
+        });
+    }
+
+    // A monitor was selected from the "Monitor Share" drop-down list (plugin mode only).
+    $("#monitorShares").change(function() {
+        console.log("*** Monitor shares change called");
+
+        // Find the share selected from the drop-down list
+        $("#monitorShares option:selected").each(function() {
+            share = monitorShares[$(this).val()];
+
+            // Select the local monitor
+            vidyoConnector.SelectLocalMonitor({
+                localMonitor: share
+            }).then(function() {
+                console.log("SelectLocalMonitor Success");
+            }).catch(function() {
+                console.error("SelectLocalMonitor Failed");
+            });
+        });
+    });
+
+    // A window was selected from the "Window Share" drop-down list.
+    // Note: in webrtc mode, this is only called for the "None" option (to stop the share) since
+    //       the share is selected in the onAdded callback of the LocalWindowShareEventListener.
+    $("#windowShares").change(function() {
+        console.log("*** Window shares change called");
+
+        // Find the share selected from the drop-down list
+        $("#windowShares option:selected").each(function() {
+            share = windowShares[$(this).val()];
+
+            // Select the local window share
+            vidyoConnector.SelectLocalWindowShare({
+                localWindowShare: share
+            }).then(function() {
+                console.log("SelectLocalWindowShare Success");
+            }).catch(function() {
+                console.error("SelectLocalWindowShare Failed");
+            });
+        });
+    });
+}
+                                   // Callback method when VidyoIO is done loading (pointer to this method is passed in the onload parameter while including the
+                                   // VidyoClient.js file)
+                                    function onVidyoClientLoaded(status) {
+                                      console.log("VidyoClient load state - " + status.state);
+                                      if (status.state == "READY") {
+                                        VC.CreateVidyoConnector({
+                                          viewId:"renderer", // Div ID where the composited video will be rendered, see VidyoConnector.html;
+                                          viewStyle:"VIDYO_CONNECTORVIEWSTYLE_Default", // Visual style of the composited renderer
+                                          remoteParticipants:10, // Maximum number of participants to render
+                                          logFileFilter:"error",
+                                          logFileName:"",
+                                          userData:""
+                                        }).then(function (vc) {
+                                          console.log("Create success");
+                                          vidyoConnector = vc;
+                                     handleSharing(vc,true);
+
+                                        }).catch(function(error){
+
+                                        });
+                                      }
+                                    }
+                                    function disconnectCall(){
+                                        vidyoConnector.Disconnect().then(function() {
+                                            console.log("Disconnect Success");
+                                        }).catch(function() {
+                                            console.error("Disconnect Failure");
+                                        });
+                                    }
+                                    function joinCall(){
+                                        var form=document.getElementById('roomname').value;
+                                        var username = $('#my-data').data();
+                                       
+                                      vidyoConnector.Connect({
+                                        host:"prod.vidyo.io",  // Server name, for most production apps it will be prod.vidyo.io
+                                        token:username.token,          // Add generated token (https://developer.vidyo.io/documentation/4-1-16-8/getting-started#Tokens)
+                                        displayName:username.myname,  // Display name
+                                        resourceId:form, // Room name
+                                        onSuccess: function(){
+                                          console.log("Connected!! YAY!");
+                                        },
+                                        onFailure: function(reason){
+                                          console.error("Connection failed");
+                                        },
+                                        onDisconnected: function(reason) {
+                                          console.log(" disconnected - " + reason);
+                                        }
+                                      })
+                                    }
+
+                                  </script>
+                                  <script src="https://static.vidyo.io/latest/javascript/VidyoClient/VidyoClient.js?onload=onVidyoClientLoaded"></script>
+                                 <input type="text" id="roomname">
+
+                                 <button class="button" onclick="joinCall()">Connect</button>
+                                 <button class="button" onclick="disconnectCall()">Disconnect</button>
+                                  <button class="button" onclick="StartWindowShare()">screen</button>
+                                 <p>
+                                                <!-- On page load, this input is filled with a list of all the available window shares on the user's system. -->
+                                                <label for="windowShares">Window Share</label>
+                                                <select id="windowShares">
+                                                                <option value='0'>None</option>
+                                                </select>
+                                </p>
+                                <div class="row large- columns" style=" height: 300px;">
+                                    <div id="renderer"></div>
+                                 </div>
+
+                            </div>
+                        </div> 
+                    </div>                
+
+            </div>
+            <div class="tabs-panel" id="panel4">
+                <div class="large-12 columns" >              
+                    <form>
+                      <fieldset>
+                        
+                        <p>
+                            <br>
+                          <label>Mobile Number</label>
+                          <input type = "text"
+                                 id = "myText"
+                                 value = "+14252838779,+19084196960" />
+                        </p>
+                        
+                        <p>
+                          <label>Message</label>
+                          <textarea id="message">Hi Sachin and Alan,  Join Me @AICollab!!!! at Call : Surgery1 at 1 pm Sunday 24th September 2017 Cheer AI Collab, RoomName: demo </textarea>
+                          <a href="/sendsms"><button id="sendmsg" class="button">Submit</button></a>
+                        </p>
+                      </fieldset>
+                    </form>
+                </div>                          
+            </div>
+            
+          <!--   <div class="tabs-panel" id="panel7">
+                <div class="all-table large-12 columns">
+                    <div class="main-table-head" ng-show="!countrytable">Overall Performance 7</div>
+                </div>      
+                
+            </div> -->
+        </div>
+    </div>
+                
+                
+                        
+                       
+                 </div>
+             </div> 
+             </div>
+       
+      <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="https://dhbhdrzi4tiry.cloudfront.net/cdn/sites/foundation.js"></script>
+    <script src ="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.14/angular.min.js"></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script src="https://code.ionicframework.com/nightly/js/ionic.bundle.js"></script>
+    <script src="../static/js/app.js"></script>
+    <script src="../static/js/dirpaginate.js"></script>
+    <script src="../static/js/graph.js"></script>
+    <script src="../static/js/foundation-datepicker.js"></script>
+    <script src="https://bouil.github.io/angular-google-chart/ng-google-chart.js"></script>
+    
+    <script>
+        $(document).foundation();
+      
+
+
+    </script>
+ 
+</body>
+</html>
